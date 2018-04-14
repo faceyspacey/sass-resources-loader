@@ -16,50 +16,9 @@ module.exports = function(source) {
   if (webpack.cacheable) webpack.cacheable();
 
   const callback = webpack.async();
-
-  global.__DEBUG__ = process.env.DEBUG === 'sass-resources-loader' || process.env.DEBUG === '*';
-
-  logger.debug(`Hey, we're in DEBUG mode! Yabba dabba doo!`);
-
-  // TODO: Remove `webpack.options.sassResources` support after first stable webpack@2 release
-  const isModernWebpack = webpack.version >= 2;
-  const resourcesFromConfig =
-    isModernWebpack
-    ? (loaderUtils.getOptions(this) || {}).resources
-    : webpack.options.sassResources;
-
-  if (!resourcesFromConfig) {
-    const error = new Error(`
-      Can't find sass resources in your config.
-      Make sure ${isModernWebpack ? 'loader.options.resources' : 'webpackConfig.sassResources'} exists.
-    `);
-
-    return callback(error);
-  }
-
+  const resourcesFromConfig =(loaderUtils.getOptions(this) || {}).resources
   const resourcesLocations = parseResources(resourcesFromConfig);
-  const moduleContext = webpack.context;
-  const webpackConfigContext = webpack.rootContext || (webpack.options && webpack.options.context) || process.cwd();
-
-  if (!webpack.rootContext && !webpack.options && !webpack.options.context) {
-    logger.debug(
-      '`options.context` is missing. Using current working directory as a root instead:',
-      process.cwd(),
-    );
-  }
-
-  logger.debug('Module context:', moduleContext);
-  logger.debug('Webpack config context:', webpackConfigContext);
-  logger.debug('Resources:', resourcesLocations);
-
-  if (!resourcesLocations.length) {
-    const error = new Error(`
-      Something wrong with provided resources.
-      Make sure 'options.resources' is String or Array of Strings.
-    `);
-
-    return callback(error);
-  }
+  const webpackConfigContext = webpack.options && webpack.options.context
 
   const files = resourcesLocations.map(resource => {
     const file = path.resolve(webpackConfigContext, resource);
@@ -71,11 +30,11 @@ module.exports = function(source) {
     files,
     (file, cb) => {
       fs.readFile(file, 'utf8', (error, contents) => {
-        rewriteImports(error, file, contents, moduleContext, cb);
+        rewriteImports(error, file, contents, webpack.context, cb);
       });
     },
     (error, resources) => {
-      processResources(error, resources, source, moduleContext, callback);
+      processResources(error, resources, source, webpack.context, callback);
     }
   );
 };
